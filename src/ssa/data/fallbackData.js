@@ -125,7 +125,7 @@ function buildObjects(count) {
   });
 }
 
-function buildRiskCells(objects, forecastHours) {
+export function buildRiskCells(objects, forecastHours) {
   const buckets = new Map();
   for (const object of objects) {
     const altitudeBin = Math.round(object.altitude_km / 400) * 400;
@@ -182,7 +182,7 @@ function buildRiskCells(objects, forecastHours) {
     .slice(0, 48);
 }
 
-function debrisDensity(altitude, inclination, category) {
+export function debrisDensity(altitude, inclination, category) {
   return clamp(
     0.08 +
       gaussian(altitude, 820, 420) * 0.42 +
@@ -194,7 +194,7 @@ function debrisDensity(altitude, inclination, category) {
   );
 }
 
-function orbitType(band, inclination) {
+export function orbitType(band, inclination) {
   if (band === "GEO") return "Geostationary belt";
   if (band === "MEO") return "Navigation/MEO shell";
   if (inclination > 80) return "Polar LEO";
@@ -202,7 +202,7 @@ function orbitType(band, inclination) {
   return "Low-inclination LEO";
 }
 
-function visualRadius(altitude) {
+export function visualRadius(altitude) {
   if (altitude <= 2000) return 2.22 + altitude / 1850;
   if (altitude <= 30000) return 3.55 + (altitude - 2000) / 3400;
   return 11.75 + Math.min(5.5, (altitude - 30000) / 2500);

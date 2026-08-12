@@ -27,7 +27,6 @@ import {
   RefreshCw,
   Rocket,
   Satellite,
-  Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -135,7 +134,6 @@ export default function App() {
   const [pulse, setPulse] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [analyticsOpen, setAnalyticsOpen] = useState(true);
-  const [globalSearch, setGlobalSearch] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notices, setNotices] = useState([]);
   const [watchlist, setWatchlist] = useState(() => new Set(JSON.parse(localStorage.getItem("ssa-watchlist") || "[]")));
@@ -250,8 +248,6 @@ export default function App() {
     }, forecast.frames[0]);
   }, [forecast, forecastHours]);
 
-  const searchedSnapshot = useMemo(() => filterSnapshot(snapshot, globalSearch), [snapshot, globalSearch]);
-  const searchSuggestions = useMemo(() => buildSearchSuggestions(snapshot), [snapshot]);
   const smartSnapshot = useMemo(() => buildSmartSnapshot(snapshot, platform.conjunctions), [snapshot, platform.conjunctions]);
   const topEvent = selectedEvent || platform.conjunctions[0] || null;
   const highPriority = platform.conjunctions.filter((event) => ["Critical", "High"].includes(event.risk_level));
@@ -296,15 +292,12 @@ export default function App() {
       <Sidebar activePage={activePage} navigate={navigate} health={platform.health} />
       <div className="platform-main">
         <TopBar
-          search={globalSearch}
-          setSearch={setGlobalSearch}
           refresh={() => setReloadNonce((value) => value + 1)}
           loading={loading}
           notificationsOpen={notificationsOpen}
           setNotificationsOpen={setNotificationsOpen}
           notices={notices}
           health={platform.health}
-          suggestions={searchSuggestions}
         />
         <main className="content-main">
           {activePage === "home" ? (
@@ -312,7 +305,7 @@ export default function App() {
           ) : null}
           {activePage === "visualization" ? (
             <VisualizationPage
-              snapshot={searchedSnapshot}
+              snapshot={snapshot}
               filters={filters}
               setFilters={setFilters}
               forecastHours={forecastHours}
@@ -351,7 +344,7 @@ export default function App() {
           ) : null}
           {activePage === "maneuver" ? <ManeuverPage event={topEvent} maneuver={maneuver} download={handleDownload} /> : null}
           {activePage === "analytics" ? <AnalyticsPage analytics={platform.analytics} events={platform.conjunctions} snapshot={snapshot} /> : null}
-          {activePage === "reports" ? <ReportsPage event={topEvent} download={handleDownload} smart={platform.smart} /> : null}
+          {activePage === "reports" ? <ReportsPage event={topEvent} events={platform.conjunctions} download={handleDownload} smart={platform.smart} /> : null}
         </main>
       </div>
     </div>
@@ -384,7 +377,7 @@ function Sidebar({ activePage, navigate, health }) {
   );
 }
 
-function TopBar({ search, setSearch, refresh, loading, notificationsOpen, setNotificationsOpen, notices, health, suggestions }) {
+function TopBar({ refresh, loading, notificationsOpen, setNotificationsOpen, notices, health }) {
   const [utc, setUtc] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setUtc(new Date()), 1000);
@@ -392,20 +385,6 @@ function TopBar({ search, setSearch, refresh, loading, notificationsOpen, setNot
   }, []);
   return (
     <header className="topbar">
-      <div className="global-search">
-        <Search size={15} />
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search satellite, debris, orbit shell, event..."
-          list="global-search-suggestions"
-        />
-        <datalist id="global-search-suggestions">
-          {(suggestions || []).map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
-      </div>
       <div className="topbar-meta">
         <span className="mono">{utc.toISOString().replace("T", " ").slice(0, 19)}Z</span>
         <span className="system-chip"><CheckCircle2 size={14} /> {health?.dataset_loaded ? "Dataset loaded" : "Loading dataset"}</span>
@@ -686,7 +665,7 @@ function CollisionPage({ event, events, selectEvent, toggleWatchlist, watchlist,
               <div className="action-plan">
                 <span>{event.suggested_action}</span>
                 <button className="primary-action" type="button" onClick={() => selectEvent(event, "maneuver")}>Open Maneuver Plan</button>
-                <button className="secondary-action" type="button" onClick={() => download("/api/reports/conjunctions.csv", "conjunctions.csv")}>Download CSV</button>
+                <button className="secondary-action" type="button" onClick={() => downloadCsvFile(buildConjunctionsCsv(events), "conjunctions.csv")}>Download CSV</button>
               </div>
             </Panel>
           </section>
@@ -756,13 +735,13 @@ function AnalyticsPage({ analytics, events, snapshot }) {
   );
 }
 
-function ReportsPage({ event, download, smart }) {
+function ReportsPage({ event, events, download, smart }) {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Reports" title="Export Center" text="Generate professional deliverables directly from the backend report engine." />
       <section className="report-grid">
         <ReportCard title="Mission Report" text="Executive summary, analytics, top events, AI briefing, and decision support." onClick={() => download("/api/reports/mission.pdf", "orbital-mission-report.pdf")} icon={FileText} />
-        <ReportCard title="Conjunction CSV" text="Tabular export for screened conjunction events and priority scores." onClick={() => download("/api/reports/conjunctions.csv", "conjunctions.csv")} icon={Download} />
+        <ReportCard title="Conjunction CSV" text="Tabular export for screened conjunction events and priority scores." onClick={() => downloadCsvFile(buildConjunctionsCsv(events), "conjunctions.csv")} icon={Download} />
         <ReportCard title="Mission JSON" text="Raw event, probability, covariance, Smart Filter, and metadata payload." onClick={() => download("/api/reports/mission.json", "orbital-mission-report.json")} icon={DatabaseZap} />
         <ReportCard title="Selected Event PDF" text={event ? `${event.id}: ${event.primary.name} vs ${event.secondary.name}` : "Select an event first."} onClick={() => event && download(`/api/reports/${event.id}.pdf`, `${event.id}-report.pdf`)} icon={ClipboardList} disabled={!event} />
       </section>
@@ -1566,40 +1545,7 @@ function EmptyState({ title, text }) {
   );
 }
 
-function filterSnapshot(snapshot, query) {
-  if (!snapshot || !query.trim()) return snapshot;
-  const q = query.trim().toLowerCase();
-  const objects = snapshot.objects.filter((object) => {
-    const searchable = [
-      object.name,
-      object.id,
-      object.band,
-      object.category,
-      object.orbit_type,
-      `${object.altitude_km}`,
-      `${object.inclination_deg}`,
-      `${object.velocity_kms}`,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return searchable.includes(q);
-  });
-  return { ...snapshot, objects, stats: { ...snapshot.stats, tracked_objects: objects.length } };
-}
 
-function buildSearchSuggestions(snapshot) {
-  if (!snapshot?.objects?.length) return [];
-  const values = new Set();
-  for (const object of snapshot.objects.slice(0, 500)) {
-    values.add(object.name);
-    values.add(object.id);
-    values.add(object.band);
-    values.add(object.category);
-    values.add(object.orbit_type);
-  }
-  return [...values].filter(Boolean).slice(0, 120);
-}
 
 function buildSmartSnapshot(snapshot, events) {
   if (!snapshot) return snapshot;
@@ -1859,15 +1805,118 @@ function logPairTypeDistribution(events) {
   }
 }
 
+/**
+ * Build a CSV export of the conjunction events currently displayed,
+ * including the satellite / debris pair shown on the globe.
+ */
+function buildConjunctionsCsv(events) {
+  const headers = [
+    "event_id",
+    "pair_type",
+    "risk_level",
+    "priority_score",
+    "tca_utc",
+    "miss_distance_m",
+    "relative_velocity_km_s",
+    "probability_of_collision",
+    "primary_name",
+    "primary_id",
+    "primary_type",
+    "primary_band",
+    "primary_orbit_type",
+    "primary_altitude_km",
+    "primary_inclination_deg",
+    "primary_velocity_kms",
+    "secondary_name",
+    "secondary_id",
+    "secondary_type",
+    "secondary_band",
+    "secondary_orbit_type",
+    "secondary_altitude_km",
+    "secondary_inclination_deg",
+    "secondary_velocity_kms",
+  ];
+
+  const rows = (events || []).map((event) => {
+    const p = buildCanonicalIdentity(event.primary);
+    const sec = buildCanonicalIdentity(event.secondary);
+    return [
+      event.id,
+      event.pair_type || getPairType(event.primary, event.secondary),
+      event.risk_level,
+      event.priority_score,
+      event.tca,
+      event.miss_distance_m,
+      event.relative_velocity_km_s,
+      event.probability_of_collision,
+      p.name,
+      p.id,
+      p.displayType,
+      event.primary?.band,
+      event.primary?.orbit_type,
+      event.primary?.altitude_km,
+      event.primary?.inclination_deg,
+      event.primary?.velocity_kms,
+      sec.name,
+      sec.id,
+      sec.displayType,
+      event.secondary?.band,
+      event.secondary?.orbit_type,
+      event.secondary?.altitude_km,
+      event.secondary?.inclination_deg,
+      event.secondary?.velocity_kms,
+    ];
+  });
+
+  return [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+}
+
+function downloadCsvFile(csv, filename) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function buildLocalConjunctions(snapshot) {
-  const objects = (snapshot?.objects || []).slice().sort((a, b) => b.future_risk - a.future_risk).slice(0, 36);
+  const catalog = (snapshot?.objects || []).slice().sort((a, b) => b.future_risk - a.future_risk);
+
+  // Build satellite-vs-debris pairs explicitly so the Object Information panel
+  // always shows one ACTIVE SATELLITE and one SPACE DEBRIS object.
+  const satellites = catalog.filter((item) => resolveObjectType(item) === OBJECT_TYPE.ACTIVE_SATELLITE).slice(0, 18);
+  const debris = catalog
+    .filter((item) => {
+      const type = resolveObjectType(item);
+      return type === OBJECT_TYPE.SPACE_DEBRIS || type === OBJECT_TYPE.FRAGMENT || type === OBJECT_TYPE.ROCKET_BODY;
+    })
+    .sort((x, y) => (resolveObjectType(x) === OBJECT_TYPE.SPACE_DEBRIS ? -1 : 1) - (resolveObjectType(y) === OBJECT_TYPE.SPACE_DEBRIS ? -1 : 1))
+    .slice(0, 18);
+
+  const pairs = [];
+  const pairCount = Math.min(satellites.length, debris.length);
+  for (let index = 0; index < pairCount; index += 1) {
+    pairs.push([satellites[index], debris[index]]);
+  }
+  // If the catalog lacks one of the classes, fall back to sequential pairing.
+  if (!pairs.length) {
+    for (let index = 0; index < catalog.length - 1 && index < 36; index += 2) {
+      pairs.push([catalog[index], catalog[index + 1]]);
+    }
+  }
+
   const events = [];
   const usedPairs = new Set();
   let validCount = 0;
 
-  for (let i = 0; i < objects.length - 1; i += 2) {
-    const a = objects[i];
-    const b = objects[i + 1];
+  for (let i = 0; i < pairs.length; i += 1) {
+    const [a, b] = pairs[i];
 
     // SELF-PAIR PREVENTION: never generate A vs A
     if (a.id === b.id) {
@@ -1887,8 +1936,8 @@ function buildLocalConjunctions(snapshot) {
     const secondaryIdentity = buildCanonicalIdentity(b);
 
     // Determine the pair type
-    const pairType = getPairType(primaryIdentity, secondaryIdentity);
-    const isSatDebris = isSatelliteDebrisPair(primaryIdentity, secondaryIdentity);
+    const pairType = getPairType(a, b);
+    const isSatDebris = isSatelliteDebrisPair(a, b);
 
     // Log the pair type for verification
     console.info(
