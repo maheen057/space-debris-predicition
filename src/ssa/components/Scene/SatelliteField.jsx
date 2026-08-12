@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BAND_COLORS, degToRad, orbitPhase, orbitPositionTo } from "../../utils/orbitalMath";
 import { selectedObjectWorldPosition, setHasSelectedObject } from "./positionSharing";
+import { clearHoveredObject, moveHoverPointer, setHoveredObject } from "./hoverStore";
 
 const tempObject = new THREE.Object3D();
 const tempColor = new THREE.Color();
@@ -134,7 +135,7 @@ function SelectedBeacon() {
 }
 
 export function SatelliteField({ objects, filters, forecastHours, selectedObject, onSelectObject }) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
 
   const activeBodyRef = useRef();
   const activePanelRef = useRef();
@@ -148,6 +149,7 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
   const elapsedRef = useRef(0);
 
   const [hovered, setHovered] = useState(null);
+  void hovered;
   // Note: HTML tooltips inside the R3F Canvas tree can cause runtime errors.
   // This component previously relied on a DOM overlay; to preserve globe rendering,
   // we omit the in-canvas tooltip markup when R3F cannot mount HTML elements.
@@ -411,17 +413,41 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
     if (item) onSelectObject(item);
   };
 
-  const handleActiveHover = (event) => {
-    const idx = event.instanceId;
-    if (idx == null) return;
-    setHovered(filteredActiveObjects[idx] || null);
+  const pointerXY = (event) => {
+    const native = event?.nativeEvent ?? event;
+    return { x: native?.clientX ?? 0, y: native?.clientY ?? 0 };
   };
 
-  const handleDebrisHover = (event) => {
+  const hoverFrom = (list) => (event) => {
     const idx = event.instanceId;
     if (idx == null) return;
-    setHovered(filteredDebrisObjects[idx] || null);
+    const item = list[idx];
+    if (!item) return;
+    const { x, y } = pointerXY(event);
+    setHovered(item);
+    setHoveredObject(item, x, y);
+    if (gl?.domElement) gl.domElement.style.cursor = "pointer";
   };
+
+  const moveFrom = (list) => (event) => {
+    const idx = event.instanceId;
+    if (idx == null) return;
+    const item = list[idx];
+    if (!item) return;
+    const { x, y } = pointerXY(event);
+    setHoveredObject(item, x, y);
+  };
+
+  const clearHover = () => {
+    setHovered(null);
+    clearHoveredObject(null);
+    if (gl?.domElement) gl.domElement.style.cursor = "auto";
+  };
+
+  const handleActiveHover = hoverFrom(filteredActiveObjects);
+  const handleDebrisHover = hoverFrom(filteredDebrisObjects);
+  const handleActiveMove = moveFrom(filteredActiveObjects);
+  const handleDebrisMove = moveFrom(filteredDebrisObjects);
 
   return (
     <>
@@ -466,9 +492,13 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
             e.stopPropagation();
             handleActiveHover(e);
           }}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            handleActiveMove(e);
+          }}
           onPointerOut={(e) => {
             e.stopPropagation();
-            setHovered(null);
+            clearHover();
           }}
         >
           <sphereGeometry args={[0.062, 12, 12]} />
@@ -492,9 +522,13 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
             e.stopPropagation();
             handleActiveHover(e);
           }}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            handleActiveMove(e);
+          }}
           onPointerOut={(e) => {
             e.stopPropagation();
-            setHovered(null);
+            clearHover();
           }}
         >
           <boxGeometry args={[0.105, 0.012, 0.03]} />
@@ -511,9 +545,13 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
             e.stopPropagation();
             handleActiveHover(e);
           }}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            handleActiveMove(e);
+          }}
           onPointerOut={(e) => {
             e.stopPropagation();
-            setHovered(null);
+            clearHover();
           }}
         >
           <boxGeometry args={[0.038, 0.038, 0.05]} />
@@ -530,9 +568,13 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
             e.stopPropagation();
             handleDebrisHover(e);
           }}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            handleDebrisMove(e);
+          }}
           onPointerOut={(e) => {
             e.stopPropagation();
-            setHovered(null);
+            clearHover();
           }}
         >
           <sphereGeometry args={[0.055, 12, 12]} />
@@ -556,9 +598,13 @@ export function SatelliteField({ objects, filters, forecastHours, selectedObject
             e.stopPropagation();
             handleDebrisHover(e);
           }}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            handleDebrisMove(e);
+          }}
           onPointerOut={(e) => {
             e.stopPropagation();
-            setHovered(null);
+            clearHover();
           }}
         >
           <sphereGeometry args={[0.032, 12, 12]} />
