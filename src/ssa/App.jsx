@@ -1545,40 +1545,7 @@ function EmptyState({ title, text }) {
   );
 }
 
-function filterSnapshot(snapshot, query) {
-  if (!snapshot || !query.trim()) return snapshot;
-  const q = query.trim().toLowerCase();
-  const objects = snapshot.objects.filter((object) => {
-    const searchable = [
-      object.name,
-      object.id,
-      object.band,
-      object.category,
-      object.orbit_type,
-      `${object.altitude_km}`,
-      `${object.inclination_deg}`,
-      `${object.velocity_kms}`,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return searchable.includes(q);
-  });
-  return { ...snapshot, objects, stats: { ...snapshot.stats, tracked_objects: objects.length } };
-}
 
-function buildSearchSuggestions(snapshot) {
-  if (!snapshot?.objects?.length) return [];
-  const values = new Set();
-  for (const object of snapshot.objects.slice(0, 500)) {
-    values.add(object.name);
-    values.add(object.id);
-    values.add(object.band);
-    values.add(object.category);
-    values.add(object.orbit_type);
-  }
-  return [...values].filter(Boolean).slice(0, 120);
-}
 
 function buildSmartSnapshot(snapshot, events) {
   if (!snapshot) return snapshot;
@@ -1839,14 +1806,36 @@ function logPairTypeDistribution(events) {
 }
 
 function buildLocalConjunctions(snapshot) {
-  const objects = (snapshot?.objects || []).slice().sort((a, b) => b.future_risk - a.future_risk).slice(0, 36);
+  const catalog = (snapshot?.objects || []).slice().sort((a, b) => b.future_risk - a.future_risk);
+
+  // Build satellite-vs-debris pairs explicitly so the Object Information panel
+  // always shows one ACTIVE SATELLITE and one SPACE DEBRIS object.
+  const satellites = catalog.filter((item) => resolveObjectType(item) === OBJECT_TYPE.ACTIVE_SATELLITE).slice(0, 18);
+  const debris = catalog
+    .filter((item) => {
+      const type = resolveObjectType(item);
+      return type === OBJECT_TYPE.SPACE_DEBRIS || type === OBJECT_TYPE.FRAGMENT || type === OBJECT_TYPE.ROCKET_BODY;
+    })
+    .slice(0, 18);
+
+  const pairs = [];
+  const pairCount = Math.min(satellites.length, debris.length);
+  for (let index = 0; index < pairCount; index += 1) {
+    pairs.push([satellites[index], debris[index]]);
+  }
+  // If the catalog lacks one of the classes, fall back to sequential pairing.
+  if (!pairs.length) {
+    for (let index = 0; index < catalog.length - 1 && index < 36; index += 2) {
+      pairs.push([catalog[index], catalog[index + 1]]);
+    }
+  }
+
   const events = [];
   const usedPairs = new Set();
   let validCount = 0;
 
-  for (let i = 0; i < objects.length - 1; i += 2) {
-    const a = objects[i];
-    const b = objects[i + 1];
+  for (let i = 0; i < pairs.length; i += 1) {
+    const [a, b] = pairs[i];
 
     // SELF-PAIR PREVENTION: never generate A vs A
     if (a.id === b.id) {
