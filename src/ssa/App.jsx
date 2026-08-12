@@ -1,3 +1,4 @@
+import "./ssa.css";
 import { motion } from "framer-motion";
 import {
   Activity,
