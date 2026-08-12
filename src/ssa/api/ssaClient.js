@@ -1,4 +1,5 @@
 import { createFallbackForecast, createFallbackSnapshot } from "../data/fallbackData";
+import { fetchCelestrakSnapshot } from "../data/celestrak";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 export const REPORT_BASE = API_BASE;
@@ -19,9 +20,17 @@ export async function getCatalog({ forecastHours = 0, limit = 900, signal } = {}
     if (error.name === "AbortError") {
       throw error;
     }
+    // Backend unavailable: use live CelesTrak GP elements before synthetic data.
+    try {
+      const live = await fetchCelestrakSnapshot(forecastHours, { signal });
+      if (live) return normalizeSnapshot(live);
+    } catch (liveError) {
+      if (liveError.name === "AbortError") throw liveError;
+    }
     return createFallbackSnapshot(forecastHours);
   }
 }
+
 
 export async function getForecast({ horizonHours = 168, steps = 9, signal } = {}) {
   try {
