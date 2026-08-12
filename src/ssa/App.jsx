@@ -27,7 +27,6 @@ import {
   RefreshCw,
   Rocket,
   Satellite,
-  Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -135,7 +134,6 @@ export default function App() {
   const [pulse, setPulse] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [analyticsOpen, setAnalyticsOpen] = useState(true);
-  const [globalSearch, setGlobalSearch] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notices, setNotices] = useState([]);
   const [watchlist, setWatchlist] = useState(() => new Set(JSON.parse(localStorage.getItem("ssa-watchlist") || "[]")));
@@ -250,8 +248,6 @@ export default function App() {
     }, forecast.frames[0]);
   }, [forecast, forecastHours]);
 
-  const searchedSnapshot = useMemo(() => filterSnapshot(snapshot, globalSearch), [snapshot, globalSearch]);
-  const searchSuggestions = useMemo(() => buildSearchSuggestions(snapshot), [snapshot]);
   const smartSnapshot = useMemo(() => buildSmartSnapshot(snapshot, platform.conjunctions), [snapshot, platform.conjunctions]);
   const topEvent = selectedEvent || platform.conjunctions[0] || null;
   const highPriority = platform.conjunctions.filter((event) => ["Critical", "High"].includes(event.risk_level));
@@ -296,15 +292,12 @@ export default function App() {
       <Sidebar activePage={activePage} navigate={navigate} health={platform.health} />
       <div className="platform-main">
         <TopBar
-          search={globalSearch}
-          setSearch={setGlobalSearch}
           refresh={() => setReloadNonce((value) => value + 1)}
           loading={loading}
           notificationsOpen={notificationsOpen}
           setNotificationsOpen={setNotificationsOpen}
           notices={notices}
           health={platform.health}
-          suggestions={searchSuggestions}
         />
         <main className="content-main">
           {activePage === "home" ? (
@@ -312,7 +305,7 @@ export default function App() {
           ) : null}
           {activePage === "visualization" ? (
             <VisualizationPage
-              snapshot={searchedSnapshot}
+              snapshot={snapshot}
               filters={filters}
               setFilters={setFilters}
               forecastHours={forecastHours}
@@ -384,7 +377,7 @@ function Sidebar({ activePage, navigate, health }) {
   );
 }
 
-function TopBar({ search, setSearch, refresh, loading, notificationsOpen, setNotificationsOpen, notices, health, suggestions }) {
+function TopBar({ refresh, loading, notificationsOpen, setNotificationsOpen, notices, health }) {
   const [utc, setUtc] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setUtc(new Date()), 1000);
@@ -392,20 +385,6 @@ function TopBar({ search, setSearch, refresh, loading, notificationsOpen, setNot
   }, []);
   return (
     <header className="topbar">
-      <div className="global-search">
-        <Search size={15} />
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search satellite, debris, orbit shell, event..."
-          list="global-search-suggestions"
-        />
-        <datalist id="global-search-suggestions">
-          {(suggestions || []).map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
-      </div>
       <div className="topbar-meta">
         <span className="mono">{utc.toISOString().replace("T", " ").slice(0, 19)}Z</span>
         <span className="system-chip"><CheckCircle2 size={14} /> {health?.dataset_loaded ? "Dataset loaded" : "Loading dataset"}</span>
