@@ -97,7 +97,8 @@ function toCatalogObject(record) {
 
 function classify(name, sourceKind) {
   const upper = name.toUpperCase();
-  if (upper.includes("DEB") || upper.includes("FRAG") || upper.includes("COOLANT")) return "SPACE_DEBRIS";
+  if (upper.includes("DEB") || upper.includes("FRAG") || upper.includes("COOLANT"))
+    return "SPACE_DEBRIS";
   if (upper.includes("R/B") || upper.includes("ROCKET")) return "ROCKET_BODY";
   if (sourceKind === "debris") return "SPACE_DEBRIS";
   return "ACTIVE_SATELLITE";

@@ -36,7 +36,9 @@ export const Route = createFileRoute("/api/public/celestrak")({
             try {
               const records = await fetchGroup(group);
               // Cap per group so the payload stays manageable.
-              return records.slice(0, kind === "active" ? 160 : 140).map((record) => ({ ...record, source_group: group, source_kind: kind }));
+              return records
+                .slice(0, kind === "active" ? 160 : 140)
+                .map((record) => ({ ...record, source_group: group, source_kind: kind }));
             } catch {
               return [];
             }
