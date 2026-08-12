@@ -1805,6 +1805,86 @@ function logPairTypeDistribution(events) {
   }
 }
 
+/**
+ * Build a CSV export of the conjunction events currently displayed,
+ * including the satellite / debris pair shown on the globe.
+ */
+function buildConjunctionsCsv(events) {
+  const headers = [
+    "event_id",
+    "pair_type",
+    "risk_level",
+    "priority_score",
+    "tca_utc",
+    "miss_distance_m",
+    "relative_velocity_km_s",
+    "probability_of_collision",
+    "primary_name",
+    "primary_id",
+    "primary_type",
+    "primary_band",
+    "primary_orbit_type",
+    "primary_altitude_km",
+    "primary_inclination_deg",
+    "primary_velocity_kms",
+    "secondary_name",
+    "secondary_id",
+    "secondary_type",
+    "secondary_band",
+    "secondary_orbit_type",
+    "secondary_altitude_km",
+    "secondary_inclination_deg",
+    "secondary_velocity_kms",
+  ];
+
+  const rows = (events || []).map((event) => {
+    const p = buildCanonicalIdentity(event.primary);
+    const sec = buildCanonicalIdentity(event.secondary);
+    return [
+      event.id,
+      event.pair_type || getPairType(event.primary, event.secondary),
+      event.risk_level,
+      event.priority_score,
+      event.tca,
+      event.miss_distance_m,
+      event.relative_velocity_km_s,
+      event.probability_of_collision,
+      p.name,
+      p.id,
+      p.displayType,
+      event.primary?.band,
+      event.primary?.orbit_type,
+      event.primary?.altitude_km,
+      event.primary?.inclination_deg,
+      event.primary?.velocity_kms,
+      sec.name,
+      sec.id,
+      sec.displayType,
+      event.secondary?.band,
+      event.secondary?.orbit_type,
+      event.secondary?.altitude_km,
+      event.secondary?.inclination_deg,
+      event.secondary?.velocity_kms,
+    ];
+  });
+
+  return [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+}
+
+function downloadCsvFile(csv, filename) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function buildLocalConjunctions(snapshot) {
   const catalog = (snapshot?.objects || []).slice().sort((a, b) => b.future_risk - a.future_risk);
 
@@ -1816,6 +1896,7 @@ function buildLocalConjunctions(snapshot) {
       const type = resolveObjectType(item);
       return type === OBJECT_TYPE.SPACE_DEBRIS || type === OBJECT_TYPE.FRAGMENT || type === OBJECT_TYPE.ROCKET_BODY;
     })
+    .sort((x, y) => (resolveObjectType(x) === OBJECT_TYPE.SPACE_DEBRIS ? -1 : 1) - (resolveObjectType(y) === OBJECT_TYPE.SPACE_DEBRIS ? -1 : 1))
     .slice(0, 18);
 
   const pairs = [];
