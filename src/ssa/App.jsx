@@ -1936,8 +1936,8 @@ function buildLocalConjunctions(snapshot) {
     const secondaryIdentity = buildCanonicalIdentity(b);
 
     // Determine the pair type
-    const pairType = getPairType(primaryIdentity, secondaryIdentity);
-    const isSatDebris = isSatelliteDebrisPair(primaryIdentity, secondaryIdentity);
+    const pairType = getPairType(a, b);
+    const isSatDebris = isSatelliteDebrisPair(a, b);
 
     // Log the pair type for verification
     console.info(
