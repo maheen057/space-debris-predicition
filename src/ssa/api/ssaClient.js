@@ -4,6 +4,8 @@ import { fetchCelestrakSnapshot } from "../data/celestrak";
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 export const REPORT_BASE = API_BASE;
 
+let liveSource = null;
+
 export async function getCatalog({ forecastHours = 0, limit = 900, signal } = {}) {
   try {
     const params = new URLSearchParams({
@@ -23,7 +25,10 @@ export async function getCatalog({ forecastHours = 0, limit = 900, signal } = {}
     // Backend unavailable: use live CelesTrak GP elements before synthetic data.
     try {
       const live = await fetchCelestrakSnapshot(forecastHours, { signal });
-      if (live) return normalizeSnapshot(live);
+      if (live) {
+        liveSource = live.source;
+        return normalizeSnapshot(live);
+      }
     } catch (liveError) {
       if (liveError.name === "AbortError") throw liveError;
     }
@@ -131,14 +136,15 @@ function normalizeSnapshot(payload) {
 }
 
 function fallbackHealth() {
+  const live = Boolean(liveSource);
   return {
-    backend: "offline fallback",
+    backend: live ? "CelesTrak direct feed" : "offline fallback",
     dataset_loaded: true,
-    dataset_source: "Synthetic fallback",
+    dataset_source: live ? liveSource : "Synthetic fallback",
     objects_tracked: 0,
     conjunctions: 0,
     high_priority_events: 0,
-    ai_status: "fallback",
-    version: "offline",
+    ai_status: live ? "live (CelesTrak)" : "fallback",
+    version: live ? "celestrak-live" : "offline",
   };
 }
