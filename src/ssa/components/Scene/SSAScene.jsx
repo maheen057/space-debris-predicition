@@ -9,6 +9,7 @@ import { RadarSweep } from "./RadarSweep";
 import { RiskHeatmap } from "./RiskHeatmap";
 import { SatelliteField } from "./SatelliteField";
 import { selectedObjectWorldPosition, hasSelectedObject } from "./positionSharing";
+import { HoverTooltip } from "./HoverTooltip";
 
 /**
  * CameraFocusController — reads the CANONICAL selected-object position
@@ -125,6 +126,7 @@ export function SSAScene({
   }, [activeFrame, snapshot]);
 
   return (
+    <>
     <Canvas
       className="ssa-canvas"
       dpr={[1, 1.8]}
@@ -181,5 +183,7 @@ export function SSAScene({
         <AdaptiveDpr pixelated />
       </Suspense>
     </Canvas>
+      <HoverTooltip />
+    </>
   );
 }
