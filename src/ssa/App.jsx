@@ -344,7 +344,7 @@ export default function App() {
           ) : null}
           {activePage === "maneuver" ? <ManeuverPage event={topEvent} maneuver={maneuver} download={handleDownload} /> : null}
           {activePage === "analytics" ? <AnalyticsPage analytics={platform.analytics} events={platform.conjunctions} snapshot={snapshot} /> : null}
-          {activePage === "reports" ? <ReportsPage event={topEvent} download={handleDownload} smart={platform.smart} /> : null}
+          {activePage === "reports" ? <ReportsPage event={topEvent} events={platform.conjunctions} download={handleDownload} smart={platform.smart} /> : null}
         </main>
       </div>
     </div>
@@ -665,7 +665,7 @@ function CollisionPage({ event, events, selectEvent, toggleWatchlist, watchlist,
               <div className="action-plan">
                 <span>{event.suggested_action}</span>
                 <button className="primary-action" type="button" onClick={() => selectEvent(event, "maneuver")}>Open Maneuver Plan</button>
-                <button className="secondary-action" type="button" onClick={() => download("/api/reports/conjunctions.csv", "conjunctions.csv")}>Download CSV</button>
+                <button className="secondary-action" type="button" onClick={() => downloadCsvFile(buildConjunctionsCsv(events), "conjunctions.csv")}>Download CSV</button>
               </div>
             </Panel>
           </section>
@@ -735,13 +735,13 @@ function AnalyticsPage({ analytics, events, snapshot }) {
   );
 }
 
-function ReportsPage({ event, download, smart }) {
+function ReportsPage({ event, events, download, smart }) {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Reports" title="Export Center" text="Generate professional deliverables directly from the backend report engine." />
       <section className="report-grid">
         <ReportCard title="Mission Report" text="Executive summary, analytics, top events, AI briefing, and decision support." onClick={() => download("/api/reports/mission.pdf", "orbital-mission-report.pdf")} icon={FileText} />
-        <ReportCard title="Conjunction CSV" text="Tabular export for screened conjunction events and priority scores." onClick={() => download("/api/reports/conjunctions.csv", "conjunctions.csv")} icon={Download} />
+        <ReportCard title="Conjunction CSV" text="Tabular export for screened conjunction events and priority scores." onClick={() => downloadCsvFile(buildConjunctionsCsv(events), "conjunctions.csv")} icon={Download} />
         <ReportCard title="Mission JSON" text="Raw event, probability, covariance, Smart Filter, and metadata payload." onClick={() => download("/api/reports/mission.json", "orbital-mission-report.json")} icon={DatabaseZap} />
         <ReportCard title="Selected Event PDF" text={event ? `${event.id}: ${event.primary.name} vs ${event.secondary.name}` : "Select an event first."} onClick={() => event && download(`/api/reports/${event.id}.pdf`, `${event.id}-report.pdf`)} icon={ClipboardList} disabled={!event} />
       </section>
