@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Interactive 3D globe of tracked satellites and orbital debris with hover identification and collision-risk forecasting.",
+          "Real-time 3D space situational awareness: hover the globe to identify satellites and debris, track orbital bands, and forecast collision risk from CelesTrak data.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
