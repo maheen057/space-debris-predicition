@@ -218,9 +218,11 @@ export function SSAScene({
           focusKey={focusKey}
         />
 
+        <InertialRotationController />
+
         <OrbitControls
           enableDamping
-          dampingFactor={0.055}
+          dampingFactor={0.045}
           autoRotate
           autoRotateSpeed={0.24}
           minDistance={4.8}
