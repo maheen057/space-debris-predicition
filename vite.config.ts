@@ -15,13 +15,18 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 const stripSourceTagsInScene = {
   name: "strip-source-tags-in-r3f-scene",
   enforce: "post" as const,
-  apply: "serve" as const,
   transform(code: string, id: string) {
-    if (!id.includes("/src/ssa/components/Scene/")) return null;
+    if (!id.includes("/src/ssa/")) return null;
     if (!code.includes("data-tsd-source")) return null;
-    return { code: code.replace(/"data-tsd-source":\s*"[^"]*",?/g, ""), map: null };
+    return {
+      code: code
+        .replace(/["']data-tsd-source["']\s*:\s*(["'])(?:(?!\1).)*\1\s*,?/g, "")
+        .replace(/["']data-tsd-source["']\s*:\s*[A-Za-z0-9_$.]+\s*,?/g, ""),
+      map: null,
+    };
   },
 };
+
 
 export default defineConfig({
   tanstackStart: {
