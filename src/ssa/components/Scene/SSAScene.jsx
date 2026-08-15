@@ -177,8 +177,13 @@ export function SSAScene({
           autoRotateSpeed={0.24}
           minDistance={4.8}
           maxDistance={32}
-          rotateSpeed={0.58}
+          rotateSpeed={0.85}
           zoomSpeed={0.82}
+          enableRotate
+          minAzimuthAngle={-Infinity}
+          maxAzimuthAngle={Infinity}
+          minPolarAngle={0}
+          maxPolarAngle={Math.PI}
         />
         <AdaptiveDpr pixelated />
       </Suspense>
