@@ -108,6 +108,54 @@ function CameraFocusController({ focusKey }) {
   return null;
 }
 
+/**
+ * InertialRotationController — keeps the globe coasting after a drag ends.
+ *
+ * OrbitControls' damping naturally provides the coast, but the constant
+ * autoRotate would otherwise override it. We disable autoRotate while the
+ * user is interacting and for a short grace period after release, letting
+ * the damping-driven momentum carry the globe before resuming idle spin.
+ */
+function InertialRotationController({ baseSpeed = 0.24, resumeDelay = 1.2 }) {
+  const { controls } = useThree();
+  const timer = useRef(0);
+
+  useEffect(() => {
+    if (!controls) return;
+
+    const onStart = () => {
+      timer.current = 0;
+      controls.autoRotate = false;
+    };
+
+    const onEnd = () => {
+      timer.current = 0;
+      controls.autoRotate = false;
+    };
+
+    controls.addEventListener("start", onStart);
+    controls.addEventListener("end", onEnd);
+
+    return () => {
+      controls.removeEventListener("start", onStart);
+      controls.removeEventListener("end", onEnd);
+    };
+  }, [controls]);
+
+  useFrame((_, delta) => {
+    if (!controls || controls.autoRotate) return;
+
+    timer.current += delta;
+    if (timer.current > resumeDelay) {
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = baseSpeed;
+    }
+  });
+
+  return null;
+}
+
+
 export function SSAScene({
   snapshot,
   filters,
@@ -170,9 +218,11 @@ export function SSAScene({
           focusKey={focusKey}
         />
 
+        <InertialRotationController />
+
         <OrbitControls
           enableDamping
-          dampingFactor={0.055}
+          dampingFactor={0.045}
           autoRotate
           autoRotateSpeed={0.24}
           minDistance={4.8}
