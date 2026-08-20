@@ -52,6 +52,7 @@ import { ControlPanel } from "./components/UI/ControlPanel";
 import { TelemetryStrip } from "./components/UI/TelemetryStrip";
 import { TimelinePanel } from "./components/UI/TimelinePanel";
 import { formatNumber, percent } from "./utils/orbitalMath";
+import { readBackendForest, runRandomForest } from "./ml/riskModel";
 import {
   getObjectTypeLabel,
   getObjectTypeKey,
