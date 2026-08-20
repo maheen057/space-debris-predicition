@@ -574,6 +574,29 @@ function SmartFilterPage({ snapshot, smartSnapshot, platform, selectEvent, navig
   const smart = platform.smart || {};
   const raw = smart.raw_events || platform.conjunctions.length;
   const after = smart.after_filter || platform.conjunctions.filter((event) => ["High", "Critical", "Medium"].includes(event.risk_level)).length;
+
+  const objects = snapshot?.objects || [];
+
+  // BEFORE AI — existing rule-based filtering, no ML applied.
+  const beforeAi = useMemo(() => {
+    const counts = { "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 };
+    for (const object of objects) {
+      const risk = Number(object.future_risk ?? object.collision_probability ?? 0);
+      if (risk >= 0.7) counts["High Risk"] += 1;
+      else if (risk >= 0.45) counts["Medium Risk"] += 1;
+      else counts["Low Risk"] += 1;
+    }
+    return { total: objects.length, counts };
+  }, [objects]);
+
+  // AFTER AI — backend Random Forest when available, otherwise the same
+  // Random Forest model trained and applied in-browser on the live catalog.
+  const afterAi = useMemo(() => {
+    const backend = readBackendForest(smart);
+    if (backend) return backend;
+    return runRandomForest(objects);
+  }, [smart, objects]);
+
   return (
     <div className="page-stack">
       <PageHeader
@@ -591,6 +614,74 @@ function SmartFilterPage({ snapshot, smartSnapshot, platform, selectEvent, navig
         </div>
         <SceneComparison title="After AI" label="Watchlist + high risk only" count={after} snapshot={smartSnapshot} accent />
       </section>
+
+      <section className="ai-compare-stack">
+        <Panel title="Before AI — Rule-based filtering" icon={SlidersHorizontal}>
+          <p className="ai-compare-note">Existing non-AI filter: objects triaged by the current rule-based risk thresholds. No machine-learning model applied.</p>
+          <RiskCountGrid total={beforeAi.total} counts={beforeAi.counts} />
+        </Panel>
+
+        <div className="ai-compare-arrow">
+          <Cpu size={20} />
+          <span>Apply AI — Random Forest classification</span>
+        </div>
+
+        <Panel title="After AI — Random Forest risk classification" icon={ShieldCheck}>
+          {afterAi ? (
+            <>
+              <p className="ai-compare-note">
+                Based on AI/ML Risk Classification · {afterAi.modelName}
+                {afterAi.source === "backend" ? " · served by the SSA backend" : " · trained on the live CelesTrak catalog in-session"}
+                {typeof afterAi.accuracy === "number" ? ` · out-of-bag accuracy ${Math.round(afterAi.accuracy * 100)}%` : ""}
+                {typeof afterAi.avgConfidence === "number" ? ` · mean vote confidence ${Math.round(afterAi.avgConfidence * 100)}%` : ""}
+              </p>
+              <RiskCountGrid total={afterAi.total} counts={afterAi.counts} accent />
+              {afterAi.importances?.length ? (
+                <div className="ai-importance">
+                  <span className="eyebrow">Top model features</span>
+                  <ul>
+                    {afterAi.importances.slice(0, 4).map((item) => (
+                      <li key={item.name}>
+                        <span>{item.name}</span>
+                        <strong>{Math.round(item.value * 100)}%</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="ai-compare-note">Waiting for enough catalog objects to run the Random Forest classifier.</p>
+          )}
+        </Panel>
+
+        <Panel title="Before vs After — Class comparison" icon={BarChart3}>
+          <div className="ai-compare-table">
+            <div className="ai-compare-row head">
+              <span>Metric</span>
+              <span>Before AI</span>
+              <span>After AI</span>
+              <span>Delta</span>
+            </div>
+            {[
+              ["Total objects", beforeAi.total, afterAi?.total ?? 0],
+              ["High risk", beforeAi.counts["High Risk"], afterAi?.counts["High Risk"] ?? 0],
+              ["Medium risk", beforeAi.counts["Medium Risk"], afterAi?.counts["Medium Risk"] ?? 0],
+              ["Low risk", beforeAi.counts["Low Risk"], afterAi?.counts["Low Risk"] ?? 0],
+            ].map(([label, before, afterValue]) => (
+              <div className="ai-compare-row" key={label}>
+                <span>{label}</span>
+                <span>{formatNumber(before)}</span>
+                <span>{formatNumber(afterValue)}</span>
+                <span className={afterValue - before >= 0 ? "delta up" : "delta down"}>
+                  {afterValue - before >= 0 ? "+" : ""}{formatNumber(afterValue - before)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </section>
+
       <section className="split-grid wide-left">
         <Panel title="Smart Filter Pipeline" icon={Cpu}>
           <Pipeline stages={smart.pipeline_stages || []} />
@@ -606,6 +697,26 @@ function SmartFilterPage({ snapshot, smartSnapshot, platform, selectEvent, navig
     </div>
   );
 }
+
+function RiskCountGrid({ total, counts, accent }) {
+  const items = [
+    ["Total objects", total, "total"],
+    ["High Risk", counts["High Risk"], "high"],
+    ["Medium Risk", counts["Medium Risk"], "medium"],
+    ["Low Risk", counts["Low Risk"], "low"],
+  ];
+  return (
+    <div className={`ai-risk-grid ${accent ? "accent" : ""}`}>
+      {items.map(([label, value, key]) => (
+        <div className={`ai-risk-cell ${key}`} key={label}>
+          <span>{label}</span>
+          <strong>{formatNumber(value || 0)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 
 function CollisionPage({ event, events, selectEvent, toggleWatchlist, watchlist, download, onShowInGlobe }) {
   if (!event) return <EmptyState title="No conjunctions detected" text="The current catalog did not produce candidate events." />;
