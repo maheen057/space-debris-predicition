@@ -2165,3 +2165,90 @@ input[type="range"]::-moz-range-thumb {
   text-transform: uppercase;
   color: rgba(49, 230, 255, 0.75);
 }
+
+/* ===== Smart AI Filter — Before AI / After AI comparison ===== */
+.ai-compare-stack {
+  display: grid;
+  gap: 16px;
+}
+.ai-compare-note {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+.ai-compare-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.ai-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.ai-risk-cell {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 176, 255, 0.16);
+  background: rgba(12, 20, 40, 0.45);
+}
+.ai-risk-cell span {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.ai-risk-cell strong {
+  font-size: 1.3rem;
+}
+.ai-risk-cell.high { border-color: rgba(255, 96, 112, 0.4); }
+.ai-risk-cell.medium { border-color: rgba(255, 191, 96, 0.4); }
+.ai-risk-cell.low { border-color: rgba(96, 226, 168, 0.35); }
+.ai-risk-grid.accent .ai-risk-cell { background: rgba(20, 32, 62, 0.6); }
+.ai-importance {
+  margin-top: 14px;
+}
+.ai-importance ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.ai-importance li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.ai-compare-table {
+  display: grid;
+  gap: 4px;
+}
+.ai-compare-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 0.8fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  background: rgba(12, 20, 40, 0.35);
+}
+.ai-compare-row.head {
+  background: transparent;
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.ai-compare-row .delta.up { color: #7fe3b0; }
+.ai-compare-row .delta.down { color: #ff8390; }
